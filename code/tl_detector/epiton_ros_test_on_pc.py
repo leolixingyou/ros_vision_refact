@@ -344,7 +344,7 @@ if __name__ == "__main__":
     day_night_list = ['day','night']
     day_night = day_night_list[0]
     if day_night == 'day':
-        parser.add_argument('--det_weight', default="/workspace/weights/yolov7/trt/new_inchen_on_pc.trt")  ### no end2end xingyou  
+        parser.add_argument('--det_weight', default="/workspace/weights/yolov7/trt/new.trt")  ### no end2end xingyou  
 
 
 

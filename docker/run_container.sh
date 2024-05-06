@@ -5,5 +5,7 @@ docker run -it \
 --net=host \
 --gpus all \
 --privileged \
---name refactoring_vision_trt \
+--name vision_trt_refactored \
 rosvision:xingyou_0312
+
+
