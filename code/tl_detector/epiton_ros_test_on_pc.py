@@ -42,12 +42,6 @@ class Camemra_Node:
         self.last_observed_time = 0
         self.baseline_boxes = [960,270]
 
-        sort_max_age = 15
-        sort_min_hits = 2
-        sort_iou_thresh = 0.1
-        self.sort_tracker_f60 = Sort(max_age=sort_max_age,
-                        min_hits=sort_min_hits,
-                        iou_threshold=sort_iou_thresh)
         
         local = os.getcwd()
         # print('now is here', local)
@@ -80,6 +74,10 @@ class Camemra_Node:
         self.pub_f60_det = rospy.Publisher('/det_result/f60', Image, queue_size=1)
         self.pub_f120_det = rospy.Publisher('/det_result/f120', Image, queue_size=1)
       
+        self.tracking_f60 = False
+        self.tracking_f120 = False
+
+
         self.bridge = CvBridge()
         self.sup = []
         ##########################
@@ -179,6 +177,15 @@ class Camemra_Node:
             det_f120_msg = self.bridge.cv2_to_imgmsg(det_img, "bgr8")#color
             self.pub_f120_det.publish(det_f120_msg)
     
+    def init_tracking(self):
+        sort_max_age = 15
+        sort_min_hits = 2
+        sort_iou_thresh = 0.1
+        sort_tracker = Sort(max_age=sort_max_age,
+                        min_hits=sort_min_hits,
+                        iou_threshold=sort_iou_thresh)
+        return sort_tracker
+    
     def update_tracking(self,box_result,flag):
         update_list = []
         if len(box_result)>0:
@@ -197,6 +204,9 @@ class Camemra_Node:
                 tracked_dets = self.sort_tracker_f60.update(dets_to_sort)
                 tracks = self.sort_tracker_f60.getTrackers()
 
+            if flag == 'f120':
+                tracked_dets = self.sort_tracker_f60.update(dets_to_sort)
+                tracks = self.sort_tracker_f60.getTrackers()
             bbox_xyxy = tracked_dets[:,:4]
             categories = tracked_dets[:, 4]
 
@@ -204,7 +214,10 @@ class Camemra_Node:
             update_list = [[int(categories[x]),new_areas[x],scores[x],bbox_xyxy[x]] for x in range(len(tracked_dets)) ]
 
         else:
-            tracked_dets = self.sort_tracker_f60.update()
+            if flag == 'f60':
+                tracked_dets = self.sort_tracker_f60.update()
+            if flag == 'f120':
+                tracked_dets = self.sort_tracker_f120.update()
 
         return update_list
 
@@ -214,9 +227,17 @@ class Camemra_Node:
         ### using shell file named 'vision.sh'
         # box_result = self.det_pred.steam_inference(img,conf=0.1, end2end=args.end2end,day_night=self.day_night)
         if flag == 'f60' :
-            box_result = self.update_tracking(box_result,flag)
+            if self.tracking_f60:
+                box_result = self.update_tracking(box_result,flag)
+            else:
+                self.sort_tracker_f60 = self.init_tracking()
+                self.tracking_f60 = True
         if flag == 'f120' :
-            box_result = self.update_tracking(box_result,flag)
+            if self.tracking_f120:
+                box_result = self.update_tracking(box_result,flag)
+            else:
+                self.sort_tracker_f120 = self.init_tracking()
+                self.tracking_f120 = True
 
         det_img = self.det_pred.draw_img(img,box_result, [255, 255, 255],self.class_names)
         tl_boxes = self.get_traffic_light_objects(box_result)
@@ -233,10 +254,14 @@ class Camemra_Node:
                 self.image_process(orig_im_f60,'f60')
                 self.get_f60_new_image = False
 
+            # if self.get_f120_new_image:
+            #     self.sub_f120_img['img'] = self.cur_f120_img['img']
+            #     orig_im_f120 = copy.copy(self.sub_f120_img['img']) 
+            #     self.image_process(orig_im_f120,'f120')
+            #     self.get_f120_new_image = False
             rate.sleep()
           
           
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='')
