@@ -220,13 +220,13 @@ class BaseEngine(object):
 
     ### image steam
     def steam_inference(self, origin_img, conf=0.5, end2end=False,day_night='day'):
-        print('DETECTION...')
+        # print('DETECTION...')
         t1 =time.time()
         img, ratio = preproc(origin_img, self.imgsz, self.mean, self.std)
-        print('Pre-process is :',round((time.time()-t1)*1000,2),' ms')
+        # print('Pre-process is :',round((time.time()-t1)*1000,2),' ms')
         t3 = time.time()
         data = self.infer(img)
-        print('Model is :',round((time.time()-t3)*1000,2),' ms')
+        # print('Model is :',round((time.time()-t3)*1000,2),' ms')
         t2 = time.time()
         if end2end:
             num, final_boxes, final_scores, final_cls_inds = data
@@ -241,7 +241,7 @@ class BaseEngine(object):
                                                              :4], dets[:, 4], dets[:, 5]
             box_result = get_box_info(origin_img, final_boxes, final_scores, final_cls_inds,
                              conf=conf, class_names=self.class_names,da0=day_night)
-        print('Post-process is :',round((time.time()-t2)*1000,2),' ms')
+        # print('Post-process is :',round((time.time()-t2)*1000,2),' ms')
         
         return box_result
     
