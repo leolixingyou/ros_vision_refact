@@ -22,7 +22,7 @@ class Save_Image_with_TL_Dis:
         self.tl_distance = -1000
         self.hist_dist = -1000
         
-        self.distance_offset = 1 # meter previous was 0.8m
+        self.distance_offset = 0.5 # meter previous was 0.8m
 
         rospy.Subscriber('/gmsl_camera/dev/video0/compressed', CompressedImage, self.IMG_f60_callback) 
         rospy.Subscriber('/gmsl_camera/dev/video1/compressed', CompressedImage, self.IMG_f120_callback) 
@@ -57,7 +57,7 @@ class Save_Image_with_TL_Dis:
     def run(self):
         while not rospy.is_shutdown():
             tl_distance = self.tl_distance
-            if tl_distance <= 150 and tl_distance > 0:
+            if tl_distance <= 180 and tl_distance > 0:
                 if abs(self.hist_dist - tl_distance) > self.distance_offset:
                     self.hist_dist = tl_distance
 
@@ -73,7 +73,7 @@ class Save_Image_with_TL_Dis:
 
 
 if __name__ == "__main__":
-    save_dir = '/workspace/demo/runs/img_tl_dis/'
+    save_dir = '/workspace/demo/runs/img_tl_dis_1/'
     img2tl_dis = Save_Image_with_TL_Dis(save_dir)
     img2tl_dis.run()
 

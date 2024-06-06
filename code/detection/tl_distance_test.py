@@ -5,6 +5,7 @@ import cv2
 import pycuda.driver as cuda
 import time
 import copy
+import csv
 
 def get_file_list(path, ftype):
     image_names = []
@@ -91,27 +92,27 @@ class Predictor(BaseEngine):
 if __name__ == '__main__':
     pred = Predictor(engine_path='/workspace/weights/yolov7/trt/integrate_each_class_fp16_0314.trt')
     class_name = pred.class_names
-    print(class_name)
 
     save_dir_ori = f"/workspace/demo/runs/tl_distance/tl_{time.strftime('%Y_%m_%d_%H_%M_%S', time.localtime(time.time()))}/"
 
     ftype = ['.png']
-    img_path_ori = '/workspace/demo/runs/img_tl_dis/'
+    img_path_ori = '/workspace/demo/runs/img_tl_dis_1/'
     came_list = ['f60', 'f120']
     log_dic = {'f60': {}, 'f120': {}}
+    off_set_original = [783, 440]## original 
 
     for cam_name in came_list:
         img_path = f'{img_path_ori}{cam_name}'
 
         if cam_name == 'f60':
             img_list = sorted(get_file_list(img_path, ftype))
-            off_set = [783, 440]
+            off_set = [392, 220]
             target_size = [1137, 640]
             save_dir = f'{save_dir_ori}{cam_name}/'
 
         if cam_name == 'f120':
             img_list = sorted(get_file_list(img_path, ftype))
-            off_set = [783, 440]
+            off_set = [392, 220]
             target_size = [1137, 640]
             save_dir = f'{save_dir_ori}{cam_name}/'
 
@@ -146,10 +147,17 @@ if __name__ == '__main__':
             cv2.imwrite(save_origi_img, draw_orig_img)
             cv2.imwrite(save_mapped_origi_img, draw_mapped_img)
 
-            combined_img = np.hstack((draw_resized_img, draw_orig_img, draw_mapped_img))
+            combined_img = np.hstack((draw_orig_img, draw_resized_img, draw_mapped_img))
             cv2.imwrite(combined_img_path, combined_img)
 
             result_detected = 1 if len(box_result_ori) > 0 or len(box_result_resized) > 0 else 0
             log_dic[cam_name][fname] = result_detected
 
-    print(log_dic)
+    # Save log_dic to a CSV file
+    csv_file_path = os.path.join(save_dir_ori, "detection_log.csv")
+    with open(csv_file_path, mode='w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(['Camera', 'Image_Name', 'Detection_Result'])
+        for cam_name, results in log_dic.items():
+            for fname, detection in results.items():
+                writer.writerow([cam_name, fname, detection])
