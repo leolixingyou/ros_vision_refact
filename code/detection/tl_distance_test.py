@@ -81,6 +81,27 @@ def draw_img_filter(orig_img, resized_img, boxes, class_names, off_set, target_s
         img = cur_img
         return img, None
 
+def box_info_cal(box_info):
+    x1,y1,x2,y2 = box_info[3]
+    width = x2 - x1
+    height = y2 - y1
+    area = width * height
+    return width, height, area
+
+def calculate_new_offset(box_center, target_size_original, scale_factor, image_size):
+    new_target_size = [int(x/scale_factor) for x in target_size_original]
+    
+    box_width, box_height = new_target_size[0], new_target_size[1]
+    img_width, img_height = image_size[0],image_size[1]
+
+    new_off_set_x = max(0, min(box_center[0] - box_width // 2, img_width - box_width))
+    new_off_set_y = max(0, min(box_center[1] - box_height // 2, img_height - box_height))
+
+    # new_off_set_x = off_set_original[0] + int((target_size_original[0] - new_target_size[0])/2)
+    # new_off_set_y = off_set_original[1] + int((target_size_original[1] - new_target_size[1])/2)
+
+    return new_target_size, [new_off_set_x, new_off_set_y]
+
 class Predictor(BaseEngine):
     def __init__(self, engine_path):
         super(Predictor, self).__init__(engine_path)
@@ -94,70 +115,95 @@ if __name__ == '__main__':
     class_name = pred.class_names
 
     save_dir_ori = f"/workspace/demo/runs/tl_distance/tl_{time.strftime('%Y_%m_%d_%H_%M_%S', time.localtime(time.time()))}/"
-
+    print(f"now is save dir {save_dir_ori}")
     ftype = ['.png']
     img_path_ori = '/workspace/demo/runs/img_tl_dis_1/'
     came_list = ['f60', 'f120']
     log_dic = {'f60': {}, 'f120': {}}
-    off_set_original = [783, 440]## original 
+    scale_factor =  [1,2,3]
+    image_size = [1920,1080]
 
     for cam_name in came_list:
-        img_path = f'{img_path_ori}{cam_name}'
+        for scale in scale_factor:
+            img_path = f'{img_path_ori}{cam_name}'
 
-        if cam_name == 'f60':
-            img_list = sorted(get_file_list(img_path, ftype))
-            off_set = [392, 220]
-            target_size = [1137, 640]
-            save_dir = f'{save_dir_ori}{cam_name}/'
+            if cam_name == 'f60':
+                img_list = sorted(get_file_list(img_path, ftype))
+                # box_center = [1086,860] #1st
+                box_center = [1091,809]
+                target_size_original = [1137, 640]
+                target_size, off_set = calculate_new_offset(box_center, target_size_original, scale, image_size)
+                save_dir = f'{save_dir_ori}{cam_name}/x{scale}/'
 
-        if cam_name == 'f120':
-            img_list = sorted(get_file_list(img_path, ftype))
-            off_set = [392, 220]
-            target_size = [1137, 640]
-            save_dir = f'{save_dir_ori}{cam_name}/'
+            if cam_name == 'f120':
 
-        resized_img_dir = f"{save_dir}resized/"
-        origi_img_dir = f"{save_dir}origi/"
-        mapped_origi_img_dir = f"{save_dir}mapped/"
-        combined_img_dir = f"{save_dir}combined/"
-        make_dir(save_dir)
-        make_dir(resized_img_dir)
-        make_dir(origi_img_dir)
-        make_dir(mapped_origi_img_dir)
-        make_dir(combined_img_dir)
+                img_list = sorted(get_file_list(img_path, ftype))
 
-        for pfile in img_list:
-            fname = pfile.split('/')[-1].split(ftype[0])[0]
-            orig_img = cv2.imread(pfile)
-            resize_small_img = orig_img[off_set[1]:off_set[1] + target_size[1], off_set[0]:off_set[0] + target_size[0]]
-            resized_img = cv2.resize(resize_small_img, (1920, 1080))
+                # box_center = [933,600]#1st
+                box_center = [991,582]
+                target_size_original = [1137, 640] ## original
 
-            box_result_ori = pred.steam_inference(orig_img, conf=0.1, end2end=True, day_night=1)
-            box_result_resized = pred.steam_inference(resized_img, conf=0.1, end2end=True, day_night=1)
+                target_size, off_set = calculate_new_offset(box_center, target_size_original, scale, image_size)
+                save_dir = f'{save_dir_ori}{cam_name}/x{scale}/'
 
-            draw_resized_img, draw_mapped_img = draw_img_filter(orig_img, resized_img, box_result_resized, class_name, off_set, target_size, remapping=True)
-            draw_orig_img, _ = draw_img_filter(None, orig_img, box_result_ori, class_name, off_set, target_size, remapping=False)
+            resized_img_dir = f"{save_dir}resized/"
+            origi_img_dir = f"{save_dir}origi/"
+            mapped_origi_img_dir = f"{save_dir}mapped/"
+            combined_img_dir = f"{save_dir}combined/"
+            make_dir(save_dir)
+            make_dir(resized_img_dir)
+            make_dir(origi_img_dir)
+            make_dir(mapped_origi_img_dir)
+            make_dir(combined_img_dir)
 
-            save_resized_img = f'{resized_img_dir}{fname}{ftype[0]}'
-            save_origi_img = f'{origi_img_dir}{fname}{ftype[0]}'
-            save_mapped_origi_img = f'{mapped_origi_img_dir}{fname}{ftype[0]}'
-            combined_img_path = f'{combined_img_dir}{fname}{ftype[0]}'
+            for pfile in img_list:
+                fname = pfile.split('/')[-1].split(ftype[0])[0]
+                log_dic[cam_name][fname]={}
+                orig_img = cv2.imread(pfile)
+                resize_small_img = orig_img[off_set[1]:off_set[1] + target_size[1], off_set[0]:off_set[0] + target_size[0]]
+                resized_img = cv2.resize(resize_small_img, (1920, 1080))
 
-            cv2.imwrite(save_resized_img, draw_resized_img)
-            cv2.imwrite(save_origi_img, draw_orig_img)
-            cv2.imwrite(save_mapped_origi_img, draw_mapped_img)
+                box_result_ori = pred.steam_inference(orig_img, conf=0.1, end2end=True, day_night=1)
+                box_result_resized = pred.steam_inference(resized_img, conf=0.1, end2end=True, day_night=1)
 
-            combined_img = np.hstack((draw_orig_img, draw_resized_img, draw_mapped_img))
-            cv2.imwrite(combined_img_path, combined_img)
+                draw_resized_img, draw_mapped_img = draw_img_filter(orig_img, resized_img, box_result_resized, class_name, off_set, target_size, remapping=True)
+                draw_orig_img, _ = draw_img_filter(None, orig_img, box_result_ori, class_name, off_set, target_size, remapping=False)
 
-            result_detected = 1 if len(box_result_ori) > 0 or len(box_result_resized) > 0 else 0
-            log_dic[cam_name][fname] = result_detected
+                save_resized_img = f'{resized_img_dir}{fname}{ftype[0]}'
+                save_origi_img = f'{origi_img_dir}{fname}{ftype[0]}'
+                save_mapped_origi_img = f'{mapped_origi_img_dir}{fname}{ftype[0]}'
+                combined_img_path = f'{combined_img_dir}{fname}{ftype[0]}'
+
+                cv2.imwrite(save_resized_img, draw_resized_img)
+                cv2.imwrite(save_origi_img, draw_orig_img)
+                cv2.imwrite(save_mapped_origi_img, draw_mapped_img)
+
+                combined_img = np.hstack((draw_orig_img, draw_resized_img, draw_mapped_img))
+                cv2.imwrite(combined_img_path, combined_img)
+
+                result_detected_ori = 1 if len(box_result_ori) > 0 else 0
+                result_detected_map = 1 if len(box_result_resized) > 0 else 0
+                log_dic[cam_name][fname]['ori detect'] = result_detected_ori
+                log_dic[cam_name][fname]['map detect'] = result_detected_map
+
+                if result_detected_ori:
+                    width_ori, height_ori, area_ori = box_info_cal(box_result_ori[0])
+                    log_dic[cam_name][fname]['ori box size'] = [width_ori, height_ori, area_ori]
+                if result_detected_map:
+                    width_resize, height_resize, area_resize = box_info_cal(box_result_resized[0])
+                    log_dic[cam_name][fname]['map box size'] = [width_resize, height_resize, area_resize]
+
+
 
     # Save log_dic to a CSV file
     csv_file_path = os.path.join(save_dir_ori, "detection_log.csv")
     with open(csv_file_path, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow(['Camera', 'Image_Name', 'Detection_Result'])
+        writer.writerow(['Camera', 'Image_Name', 'Ori_Detect', 'Map_Detect', 'Ori_Box_Width', 'Ori_Box_Height', 'Ori_Box_Area', 'Map_Box_Width', 'Map_Box_Height', 'Map_Box_Area'])
         for cam_name, results in log_dic.items():
             for fname, detection in results.items():
-                writer.writerow([cam_name, fname, detection])
+                ori_detect = detection.get('ori detect', '')
+                map_detect = detection.get('map detect', '')
+                ori_box_size = detection.get('ori box size', ['', '', ''])
+                map_box_size = detection.get('map box size', ['', '', ''])
+                writer.writerow([cam_name, fname, ori_detect, map_detect, ori_box_size[0], ori_box_size[1], ori_box_size[2], map_box_size[0], map_box_size[1], map_box_size[2]])
