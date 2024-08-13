@@ -1,9 +1,5 @@
-import os
-import time
 import math
 import numpy as np
-import copy
-import cv2
 import pycuda.driver as cuda ## I had problem with this, so must import. Plz check yourself 
 import pycuda.autoinit ## I had problem with this, so must import. Plz check yourself
 
@@ -14,7 +10,7 @@ from src_code.detection.det_infer import Predictor
 ##### Modify the args_init
 
 class Detecotr_YoloV7:
-    def __init__(self, args):
+    def __init__(self):
         
         self.class_names = ['person', 'bicycle','car','bus','motorcycle','truck', 'green', 'red', 'yellow',
                             'red_arrow', 'red_yellow', 'green_arrow','green_yellow','green_right',
@@ -23,7 +19,7 @@ class Detecotr_YoloV7:
         
         self.baseline_boxes = [960,270]
         
-        self.args = args
+        self.args = self.args_init()
 
         sort_max_age = 15
         sort_min_hits = 2
@@ -37,6 +33,24 @@ class Detecotr_YoloV7:
 
         self.real_cls_hist = 0
 
+    ### modifying this function
+    def args_init(self):
+        parser = argparse.ArgumentParser(description='')
+        parser.add_argument("--end2end", default=True, action="store_true",help="use end2end engine")
+        
+        day_night_list = ['day','night']
+        day_night = day_night_list[0]
+        if day_night == 'day':
+            parser.add_argument('--det_weight', default="/workspace/weights/yolov7/trt_3080ti/new_incheon.trt")  ### no end2end xingyou  
+            parser.add_argument('--day_night', default="day")  ### no end2end xingyou  
+
+        if day_night == 'night':
+            parser.add_argument('--det_weight', default="./detection/weights/230615_night_songdo_no_nms_2.trt")  ### end2end
+            parser.add_argument('--day_night', default="night")  ### end2end
+
+        args = parser.parse_args()
+        return args
+    
     def filtered_obs(self,traffic_light_obs):
         new_obs = []
         for obs in traffic_light_obs:
